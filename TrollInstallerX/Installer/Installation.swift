@@ -214,7 +214,7 @@ func doDirectInstall(_ device: Device) async -> Bool {
     if !install_trollstore(useLocalCopy ? "/private/preboot/tmp/TrollStore.tar" : Bundle.main.bundlePath + "/TrollStore.tar") {
         Logger.log("Failed to install TrollStore", type: .error)
     } else {
-        Logger.log("Successfully installed TrollStore!", type: .success)
+        Logger.log("巨魔商店安装成功！", type: .success)
     }
     
     if !cleanupPrivatePreboot() {
