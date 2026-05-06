@@ -30,7 +30,7 @@ struct MenuView: View {
                         HStack {
                             Label(
                                 title: {
-                                    Text("Settings")
+                                    Text(" ")
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
                                 },
                                 icon: { Image(systemName: "gear")
@@ -65,7 +65,7 @@ struct MenuView: View {
                         HStack {
                             Label(
                                 title: {
-                                    Text("Credits")
+                                    Text(" ")
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
                                 },
                                 icon: { Image(systemName: "info.circle")
