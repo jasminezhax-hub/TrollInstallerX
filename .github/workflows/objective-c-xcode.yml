@@ -1,0 +1,48 @@
+name: Build TrollInstallerX IPA
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build with Xcode
+      run: |
+        xcodebuild clean build \
+          -project TrollInstallerX.xcodeproj \
+          -scheme "TrollInstallerX" \
+          -configuration Release \
+          -sdk iphoneos \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          DEVELOPMENT_TEAM=""
+
+    - name: Package IPA
+      run: |
+        # 找到构建出来的 .app 文件
+        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData/TrollInstallerX-*/Build/Products/Release-iphoneos -name "TrollInstallerX.app" | head -n 1)
+        if [ -z "$APP_PATH" ]; then
+          echo "❌ 找不到 .app 文件，构建失败"
+          exit 1
+        fi
+
+        # 创建 Payload 文件夹并打包成 IPA
+        mkdir -p Payload
+        cp -r "$APP_PATH" Payload/
+        zip -r TrollInstallerX.ipa Payload/
+        rm -rf Payload
+
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TrollInstallerX-Modified-IPA
+        path: TrollInstallerX.ipa
