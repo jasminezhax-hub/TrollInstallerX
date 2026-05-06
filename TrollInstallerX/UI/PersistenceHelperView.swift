@@ -13,12 +13,12 @@ struct PersistenceHelperView: View {
     var body: some View {
         ScrollView {
             VStack {
-                Text("Persistence helper")
+                Text("点击Tips👇")
                     .font(.system(size: 23, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
                 if allowNoPersistenceHelper {
-                    Text("If you already have one installed, scroll to the bottom.")
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                    Text("截图发客服")
+                        .font(.system(size: 23, weight: .regular, design: .rounded))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                 }
