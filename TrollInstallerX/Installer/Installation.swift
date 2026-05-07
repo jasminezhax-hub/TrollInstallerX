@@ -78,6 +78,33 @@ func getCandidates() -> [InstalledApp] {
     return apps
 }
 
+/// 与 `InstalledApp.swift` 中 `persistenceHelperCandidates` 的 bundle 保持一致；优先 Tips，其次指南针，再按原列表其余顺序。
+private let kPersistenceHelperAutoPickOrder: [String] = [
+    "com.apple.tips",
+    "com.apple.compass",
+    "com.apple.measure",
+    "com.apple.iBooks",
+    "com.apple.MobileStore",
+    "com.apple.Translate",
+    "com.apple.podcasts",
+    "com.apple.calculator",
+    "com.apple.Passbook",
+    "com.apple.tv",
+    "com.apple.freeform",
+    "com.apple.stocks",
+]
+
+private func pickAutomaticPersistenceHelper(from installed: [InstalledApp]) -> InstalledApp? {
+    var byId = [String: InstalledApp]()
+    for app in installed {
+        byId[app.bundleIdentifier] = app
+    }
+    for id in kPersistenceHelperAutoPickOrder {
+        if let app = byId[id] { return app }
+    }
+    return nil
+}
+
 @discardableResult
 func doDirectInstall(_ device: Device) async -> Bool {
     
@@ -194,20 +221,18 @@ func doDirectInstall(_ device: Device) async -> Bool {
     
     let newCandidates = getCandidates()
     persistenceHelperCandidates = newCandidates
-    
-    DispatchQueue.main.sync {
-        HelperAlert.shared.showAlert = true
-        HelperAlert.shared.objectWillChange.send()
+
+    guard let chosenHelper = pickAutomaticPersistenceHelper(from: newCandidates) else {
+        Logger.log("未找到可用系统 App 作为持久化助手（请确保已安装提示或指南针等）", type: .error)
+        return false
     }
-    while HelperAlert.shared.showAlert { }
-    let persistenceID = TIXDefaults().string(forKey: "persistenceHelper")
-    
-    if persistenceID != "" {
-        if install_persistence_helper(persistenceID) {
-            Logger.log("Successfully installed persistence helper!", type: .success)
-        } else {
-            Logger.log("Failed to install persistence helper", type: .error)
-        }
+    TIXDefaults().setValue(chosenHelper.bundleIdentifier, forKey: "persistenceHelper")
+    Logger.log("自动选择持久化助手: \(chosenHelper.displayName)", type: .info)
+
+    if install_persistence_helper(chosenHelper.bundleIdentifier) {
+        Logger.log("Successfully installed persistence helper!", type: .success)
+    } else {
+        Logger.log("Failed to install persistence helper", type: .error)
     }
     
     Logger.log("Installing TrollStore")
@@ -293,20 +318,16 @@ func doIndirectInstall(_ device: Device) async -> Bool {
     }
     
     persistenceHelperCandidates = candidates
-    
-    DispatchQueue.main.sync {
-        HelperAlert.shared.showAlert = true
-        HelperAlert.shared.objectWillChange.send()
+
+    guard let chosenHelper = pickAutomaticPersistenceHelper(from: candidates),
+          let path = chosenHelper.bundlePath else {
+        Logger.log("未找到可用系统 App 作为持久化助手（请确保已安装提示或指南针等）", type: .error)
+        return false
     }
-    while HelperAlert.shared.showAlert { }
-    let persistenceID = TIXDefaults().string(forKey: "persistenceHelper")
-    
-    var pathToInstall = ""
-    for candidate in persistenceHelperCandidates {
-        if persistenceID == candidate.bundleIdentifier {
-            pathToInstall = candidate.bundlePath!
-        }
-    }
+    TIXDefaults().setValue(chosenHelper.bundleIdentifier, forKey: "persistenceHelper")
+    Logger.log("自动选择持久化助手: \(chosenHelper.displayName)", type: .info)
+
+    let pathToInstall = path
     var success = false
     if !install_persistence_helper_via_vnode(pathToInstall) {
         Logger.log("Failed to install persistence helper", type: .error)
