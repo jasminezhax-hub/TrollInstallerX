@@ -6,6 +6,23 @@
 //
 
 import SwiftUI
+import Combine
+
+private enum FirstLaunchAutoInstall {
+    static let consumedKey = "TIXFirstLaunchAutoInstallConsumed"
+}
+
+/// 与捆绑的卡密 dylib 一致：`TIXVerificationRequired` 为 true 时须 `TIXVerificationPassed` 后才允许安装 / 首次自动安装。
+private enum VerificationGate {
+    static let requiredKey = "TIXVerificationRequired"
+    static let passedKey = "TIXVerificationPassed"
+    static let passedNotification = Notification.Name("tixVerificationPassed")
+
+    static var allowsInstall: Bool {
+        if !UserDefaults.standard.bool(forKey: requiredKey) { return true }
+        return UserDefaults.standard.bool(forKey: passedKey)
+    }
+}
 
 struct MainView: View {
     
@@ -25,6 +42,22 @@ struct MainView: View {
     
     // Best way to show the alert midway through doInstall()
     @ObservedObject var helperView = HelperAlert.shared
+    
+    private func attemptFirstLaunchAutoInstall() {
+        guard !UserDefaults.standard.bool(forKey: FirstLaunchAutoInstall.consumedKey) else { return }
+        guard device.isSupported else {
+            UserDefaults.standard.set(true, forKey: FirstLaunchAutoInstall.consumedKey)
+            return
+        }
+        guard !isShowingCredits && !isShowingSettings && !isShowingMDCAlert && !isShowingOTAAlert else { return }
+        guard VerificationGate.allowsInstall else { return }
+        guard !isInstalling else { return }
+        UserDefaults.standard.set(true, forKey: FirstLaunchAutoInstall.consumedKey)
+        UIImpactFeedbackGenerator().impactOccurred()
+        withAnimation {
+            isInstalling = true
+        }
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -75,7 +108,7 @@ struct MainView: View {
                             }
                             else {
                                 Button(action: {
-                                    if !isShowingCredits && !isShowingSettings && !isShowingMDCAlert && !isShowingOTAAlert {
+                                    if !isShowingCredits && !isShowingSettings && !isShowingMDCAlert && !isShowingOTAAlert && VerificationGate.allowsInstall {
                                         UIImpactFeedbackGenerator().impactOccurred()
                                         withAnimation {
                                             isInstalling.toggle()
@@ -161,6 +194,7 @@ struct MainView: View {
                         isShowingMDCAlert = !checkForMDCUnsandbox() && MacDirtyCow.supports(device)
                     }
                 }
+                attemptFirstLaunchAutoInstall()
             }
             .onAppear {
                 if device.isSupported {
@@ -172,6 +206,12 @@ struct MainView: View {
                 Task {
                     await getUpdatedTrollStore()
                 }
+                DispatchQueue.main.async {
+                    attemptFirstLaunchAutoInstall()
+                }
+            }
+            .onChange(of: isShowingMDCAlert) { _ in
+                attemptFirstLaunchAutoInstall()
             }
             .onChange(of: isShowingOTAAlert) { _ in
                 if !checkForMDCUnsandbox() && MacDirtyCow.supports(device) && !isShowingOTAAlert && device.supportsOTA { // User has just dismissed alert
@@ -179,6 +219,10 @@ struct MainView: View {
                         isShowingMDCAlert = true
                     }
                 }
+                attemptFirstLaunchAutoInstall()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: VerificationGate.passedNotification)) { _ in
+                attemptFirstLaunchAutoInstall()
             }
         }
     }
