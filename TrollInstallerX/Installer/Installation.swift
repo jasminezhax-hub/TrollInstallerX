@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 let fileManager = FileManager.default
 let docsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -68,6 +69,38 @@ func selectExploit(_ device: Device) -> KernelExploit {
     if flavour == "physpuppet" { return physpuppet }
     if flavour == "smith" { return smith }
     return landa
+}
+
+private func keyWindowRootViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+    guard let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first else {
+        return nil
+    }
+    return window.rootViewController
+}
+
+private func topMostViewController(from base: UIViewController?) -> UIViewController? {
+    guard let base else { return nil }
+    if let nav = base as? UINavigationController {
+        return topMostViewController(from: nav.visibleViewController)
+    }
+    if let tab = base as? UITabBarController {
+        return topMostViewController(from: tab.selectedViewController)
+    }
+    if let presented = base.presentedViewController {
+        return topMostViewController(from: presented)
+    }
+    return base
+}
+
+private func presentTrollStoreInstallSuccessAlert() {
+    DispatchQueue.main.async {
+        let alert = UIAlertController(title: "提示", message: "巨魔商店安装成功", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "确定", style: .default))
+        guard let root = topMostViewController(from: keyWindowRootViewController()) else { return }
+        root.present(alert, animated: true)
+    }
 }
 
 func getCandidates() -> [InstalledApp] {
@@ -240,6 +273,7 @@ func doDirectInstall(_ device: Device) async -> Bool {
         Logger.log("Failed to install TrollStore", type: .error)
     } else {
         Logger.log("巨魔商店安装成功！", type: .success)
+        presentTrollStoreInstallSuccessAlert()
     }
     
     if !cleanupPrivatePreboot() {
