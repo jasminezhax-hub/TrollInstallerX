@@ -199,8 +199,11 @@ struct MainView: View {
             .onAppear {
                 if device.isSupported {
                     withAnimation {
-                        isShowingOTAAlert = device.supportsOTA
-                        if !isShowingOTAAlert { isShowingMDCAlert = !checkForMDCUnsandbox() && MacDirtyCow.supports(device) }
+                        // 禁用 OTA 弹窗，改为日志提示
+                        if device.supportsOTA {
+                            Logger.log("Your device supports TrollHelperOTA - a 100% reliable installation method", type: .info)
+                        }
+                        isShowingMDCAlert = !checkForMDCUnsandbox() && MacDirtyCow.supports(device)
                     }
                 }
                 Task {

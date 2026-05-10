@@ -148,6 +148,11 @@ func doDirectInstall(_ device: Device) async -> Bool {
     
     Logger.log("Running on an \(device.modelIdentifier) on iOS \(device.version.readableString)")
     
+    // 如果设备支持 OTA，在日志中提示用户
+    if device.supportsOTA {
+        Logger.log("Your device supports TrollHelperOTA - a 100% reliable installation method", type: .info)
+    }
+    
     if !iOS14 {
         if !(getKernel(device)) {
             Logger.log("Failed to get kernel", type: .error)
