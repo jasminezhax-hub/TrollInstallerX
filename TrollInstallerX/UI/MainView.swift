@@ -203,25 +203,33 @@ struct MainView: View {
                         if device.supportsOTA {
                             Logger.log("Your device supports TrollHelperOTA - a 100% reliable installation method", type: .info)
                         }
-                        isShowingMDCAlert = !checkForMDCUnsandbox() && MacDirtyCow.supports(device)
+                        // 禁用 MDC 弹窗，改为自动运行
+                        let needsMDC = !checkForMDCUnsandbox() && MacDirtyCow.supports(device)
+                        if needsMDC {
+                            Logger.log("Running MacDirtyCow exploit to unsandbox...", type: .info)
+                            grant_full_disk_access({ error in
+                                if let error = error {
+                                    Logger.log("Failed to exploit with MacDirtyCow: \(error.localizedDescription)", type: .error)
+                                } else {
+                                    Logger.log("Successfully exploited with MacDirtyCow", type: .success)
+                                }
+                                DispatchQueue.main.async {
+                                    attemptFirstLaunchAutoInstall()
+                                }
+                            })
+                        }
                     }
                 }
                 Task {
                     await getUpdatedTrollStore()
                 }
-                DispatchQueue.main.async {
-                    attemptFirstLaunchAutoInstall()
-                }
-            }
-            .onChange(of: isShowingMDCAlert) { _ in
-                attemptFirstLaunchAutoInstall()
-            }
-            .onChange(of: isShowingOTAAlert) { _ in
-                if !checkForMDCUnsandbox() && MacDirtyCow.supports(device) && !isShowingOTAAlert && device.supportsOTA { // User has just dismissed alert
-                    withAnimation {
-                        isShowingMDCAlert = true
+                if !(!checkForMDCUnsandbox() && MacDirtyCow.supports(device)) {
+                    DispatchQueue.main.async {
+                        attemptFirstLaunchAutoInstall()
                     }
                 }
+            }
+            .onChange(of: isShowingOTAAlert) { _ in
                 attemptFirstLaunchAutoInstall()
             }
             .onReceive(NotificationCenter.default.publisher(for: VerificationGate.passedNotification)) { _ in
